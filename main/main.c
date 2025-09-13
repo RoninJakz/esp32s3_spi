@@ -23,6 +23,8 @@
 #define RPD_REG    0x09         //0000 1001
 #define FIFO_STATUS_REG 0x17    //0001 0111
 #define CONFIG     0x00         //0000 0000 
+#define RF_CH      0x05         //RF channel freq. F0= 2400 + RF_CH [MHz] 
+#define TX_ADDR    0x10         //transmit address. (Reset value: 0xE7E7E7E7E7) RX_ADDR_P0 has to be equal to this address to handle auto_ack
 
 
 
@@ -62,58 +64,65 @@ void app_main(void)
 
 
 
+    //set config bit PRIM_RX low
 
-    //Masking the command and address bits
-    uint8_t regr = R_REGISTER | (CONFIG & 0x1F);     
-    uint8_t regw = W_REGISTER | (CONFIG & 0x1F);
-
-    //Writing data
-    uint8_t w_data;
-    //Reading data
-    uint8_t r_data;
-
-    //Because of full-duplex protocol a dummybyte is required
+    //Because of full-duplex protocol a dummybyte is required when reading
     //8 bit command -- 8 bit dummy to recieve STATUS 
-    uint8_t sendbuf[2] = {regr,0xFF};
-    uint8_t recvbuf[2] = {0};
+
+    uint8_t regr = R_REGISTER | (CONFIG & 0x1F);  //masking the read command with config register map address
+    uint8_t r_data; //reading data
 
 
     spi_transaction_t t;
     memset(&t, 0, sizeof(t));
+    t.length =16;
+    uint8_t sendbuf[2] = {regr,0xFF}; //creating a buffer to send data (0xFF dummy)
+    uint8_t recvbuf[2] = {0}; //creating a buffer to recieve data
+    t.tx_buffer = sendbuf; //sending
+    t.rx_buffer = recvbuf; //receiving
+    spi_device_transmit(handle, &t);
+    printf("\nTransmitted: 0x%02X%02X\n",sendbuf[0],sendbuf[1]);
+    printf("Received: 0x%02X%02X\n",recvbuf[0],recvbuf[1]);
+    r_data = recvbuf[1];
+
+    uint8_t regw = W_REGISTER | (CONFIG & 0x1F); //masking the write command with config register map address
+    uint8_t w_data = (r_data | 0x03); //command data, setting PWR_UP = 1, PRIM_RX = 1
+    sendbuf[0] = regw; //write command
+    sendbuf[1] = w_data; //write data
+    
+    //new transmit message, same transaction length
+    t.tx_buffer = sendbuf;
+    t.rx_buffer = recvbuf;
+    spi_device_transmit(handle, &t);
+    
+      
+
+
+
+    int usr_msg; //
+
+
+
+   
+
+
+
+
+        
+ /*
+    //config register olvasása
 
 
     
 
-
-    t.length =16;
-
-        
-
-    //config register olvasása
-    sendbuf[0] = regr;
-    sendbuf[1] = 0xFF;
-
-    t.tx_buffer = sendbuf;
-    t.rx_buffer = recvbuf;
-    spi_device_transmit(handle, &t);
-    printf("\nReading phase\n");
-    printf("\nTransmitted: 0x%02X%02X\n",sendbuf[0],sendbuf[1]);
-    printf("Received: 0x%02X%02X\n",recvbuf[0],recvbuf[1]);
-
-    r_data = recvbuf[1];
     printf("Register Data: 0x%02X\n",r_data);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
-        
 
-    //config register írása
+    
 
-    w_data = (r_data | 0x03); //PWR_UP = 1, PRIM_RX = 1
-    sendbuf[0] = regw; 
-    sendbuf[1] = w_data;
 
-    t.tx_buffer = sendbuf;
-    t.rx_buffer = recvbuf;
-    spi_device_transmit(handle, &t);
+
+
 
     printf("\nWriting phase\n");
     printf("\nTransmitted: 0x%02X%02X\n",sendbuf[0],sendbuf[1]);
@@ -174,7 +183,9 @@ void app_main(void)
     printf("Register Data: 0x%02X\n",r_data);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
         
-     
+    
+    */
+
 }
 //0E 11:  0000 1110   0001 0001
 
